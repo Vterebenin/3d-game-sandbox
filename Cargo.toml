@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.15.1"
+bevy_rapier3d = { version = "0.28.0", features = [ "simd-stable", "debug-render-3d" ] }
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!
