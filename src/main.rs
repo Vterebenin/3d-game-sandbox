@@ -12,6 +12,7 @@ fn main() {
         .add_systems(Update, respawn_cube_on_space)
         .add_systems(Update, camera_handle)
         .add_systems(Update, update_controls)
+        .add_systems(Update, update_camera)
         .run();
 }
 
@@ -19,7 +20,10 @@ fn main() {
 struct Respawnable;
 
 #[derive(Component)]
-struct MyCamera;
+struct MyCamera {
+    camera_delta: Vec3,
+}
+
 
 #[derive(Component)]
 struct Player;
@@ -30,12 +34,14 @@ fn setup_graphics(mut commands: Commands) {
     //     ..Default::default()
     // });
     commands.spawn((
-        MyCamera,
+        MyCamera {
+            camera_delta: Vec3::new(-4.0, 7.0, 0.0),
+        },
         Camera3d::default(),
         Projection::from(PerspectiveProjection {
             ..PerspectiveProjection::default()
         }),
-        Transform::from_xyz(-10.0, 10.0, 40.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(-4.0, 7.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     // light
     commands.spawn((
@@ -61,7 +67,7 @@ fn setup_physics(
         ))
         .insert(Transform::from_xyz(0.0, 0.0, 0.0));
 
-    /* Create the bouncing ball. */
+    /* Create the bouncing cube. */
     commands
         .spawn((
             Player,
@@ -122,16 +128,45 @@ fn update_controls(
     }
 }
 
+fn update_camera(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut query: Query<&mut MyCamera, With<MyCamera>>,
+) {
+    let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
+        (KeyCode::ArrowUp, Vec3::new(1., 0., 0.)),
+        (KeyCode::ArrowDown, Vec3::new(-1., 0., 0.)),
+        (KeyCode::ArrowLeft, Vec3::new(0., 0., -1.)),
+        (KeyCode::ArrowRight, Vec3::new(0., 0., 1.)),
+        (KeyCode::PageUp, Vec3::new(0., 1., 0.)),
+        (KeyCode::PageDown, Vec3::new(0., -1., 0.)),
+    ]);
+    for (key, value) in dirs.into_iter() {
+        if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
+            for mut camera in query.iter_mut() {
+                // Reset the position and velocity of the cube
+                camera.camera_delta += value;
+                println!("{}", camera.camera_delta);
+                dbg!("{}", camera.camera_delta);
+            }
+        }
+    }
+}
+
 fn camera_handle(
     player_query: Query<&mut Transform, With<Player>>,
-    mut camera_query: Query<&mut Transform, (With<MyCamera>, Without<Player>)>,
+    mut camera_query: Query<(&mut Transform, &MyCamera), (With<MyCamera>, Without<Player>)>,
 ) {
     let player_transform = player_query.get_single().expect("player should exist");  
-    let mut camera_transform = camera_query.get_single_mut().expect("camera should exist");  
+    let (mut camera_transform, camera) = camera_query.get_single_mut().expect("camera should exist");  
     // Reset the position and velocity of the cube
+    camera_transform.look_at(Vec3::new(
+        player_transform.translation.x + 10.,
+        player_transform.translation.y + 1.5,
+        player_transform.translation.z + 0.0,
+    ), Vec3::Y);
     camera_transform.translation = Vec3::new(
-        player_transform.translation.x - 10.0,
-        player_transform.translation.y + 10.0,
-        player_transform.translation.z + 40.0,
-    );
+        player_transform.translation.x,
+        player_transform.translation.y,
+        player_transform.translation.z,
+    ) + camera.camera_delta;
 }
