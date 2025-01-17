@@ -2,5 +2,8 @@
   assets:
    [ 
     ("Direct", File ( path: "blueprints/Direct.glb" )),
+    ("With Empty", File ( path: "blueprints/With Empty.glb" )),
+    ("Wireframes", File ( path: "blueprints/Wireframes.glb" )),
+    ("static", File ( path: "blueprints/static.glb" )),
    ]
 )
