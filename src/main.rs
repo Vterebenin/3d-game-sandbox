@@ -1,172 +1,33 @@
-use bevy::{prelude::*, utils::hashbrown::HashMap};
-use bevy_rapier3d::prelude::*;
+use bevy::prelude::*;
+use blenvy::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugins(RapierDebugRenderPlugin::default())
-        .add_systems(Startup, setup_graphics)
-        .add_systems(Startup, setup_physics)
-        .add_systems(Update, print_ball_altitude)
-        .add_systems(Update, respawn_cube_on_space)
-        .add_systems(Update, camera_handle)
-        .add_systems(Update, update_controls)
-        .add_systems(Update, update_camera)
+        .add_plugins((DefaultPlugins, BlenvyPlugin::default()))
+        // We need to register components to make them visible to Blenvy
+        .register_type::<Player>()
+        .add_systems(Startup, setup)
         .run();
 }
 
-#[derive(Component)]
-struct Respawnable;
-
-#[derive(Component)]
-struct MyCamera {
-    camera_delta: Vec3,
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+struct Player {
+    strength: f32,
+    perception: f32,
+    endurance: f32,
+    charisma: f32,
+    intelligence: f32,
+    agility: f32,
+    luck: f32,
 }
 
-
-#[derive(Component)]
-struct Player;
-
-fn setup_graphics(mut commands: Commands) {
-    // Add a camera so we can see the debug-render.
-    // commands.spawn(Camera3dBundle {
-    //     ..Default::default()
-    // });
+fn setup(mut commands: Commands) {
     commands.spawn((
-        MyCamera {
-            camera_delta: Vec3::new(-4.0, 7.0, 0.0),
-        },
-        Camera3d::default(),
-        Projection::from(PerspectiveProjection {
-            ..PerspectiveProjection::default()
-        }),
-        Transform::from_xyz(-4.0, 7.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-    ));
-    // light
-    commands.spawn((
-        PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(4.0, 8.0, 4.0),
+        BlueprintInfo::from_path("levels/World.glb"),
+        SpawnBlueprint,
+        HideUntilReady,
+        GameWorldTag,
     ));
 }
 
-fn setup_physics(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    /* Create the ground. */
-    commands
-        .spawn((
-            Collider::cuboid(100.0, 0.1, 100.0),
-            Mesh3d(meshes.add(Cuboid::new(200.0, 0.2, 200.0))),
-            MeshMaterial3d(materials.add(Color::WHITE)),
-        ))
-        .insert(Transform::from_xyz(0.0, 0.0, 0.0));
-
-    /* Create the bouncing cube. */
-    commands
-        .spawn((
-            Player,
-            Respawnable,
-            RigidBody::Dynamic,
-            MeshMaterial3d(materials.add(Color::WHITE)),
-            Mesh3d(meshes.add(Cuboid::new(0.5, 0.5, 0.5))),
-            Transform::from_xyz(0.0, 4.0, 0.0),
-            Velocity {
-                linvel: Vec3::new(0.0, 0.0, 0.0),
-                angvel: Vec3::new(0.0, 0.0, 0.0),
-            },
-        ))
-        .insert(Collider::cuboid(0.5, 0.5, 0.5))
-        .insert(Restitution::coefficient(0.7));
-}
-
-fn print_ball_altitude(mut positions: Query<&mut Transform, With<RigidBody>>) {
-    for mut transform in positions.iter_mut() {
-        // dbg!(transform.rotation.to_axis_angle());
-        transform.rotation = Quat::from_rotation_z(270_f32.to_radians());
-        //println!("Ball altitude: {}", transform.translation.y);
-    }
-}
-
-fn respawn_cube_on_space(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&mut Transform, &mut Velocity), With<Respawnable>>,
-) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        for (mut transform, mut velocity) in query.iter_mut() {
-            // Reset the position and velocity of the cube
-            transform.translation = Vec3::new(0.0, 8.0, 0.0);
-            velocity.linvel = Vec3::ZERO;
-            velocity.angvel = Vec3::ZERO;
-        }
-    }
-}
-
-fn update_controls(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Velocity, With<Player>>,
-) {
-    let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
-        (KeyCode::KeyW, Vec3::new(1., 0., 0.)),
-        (KeyCode::KeyS, Vec3::new(-1., 0., 0.)),
-        (KeyCode::KeyA, Vec3::new(0., 0., -1.)),
-        (KeyCode::KeyD, Vec3::new(0., 0., 1.)),
-    ]);
-    for (key, value) in dirs.into_iter() {
-        if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
-            for mut velocity in query.iter_mut() {
-                // Reset the position and velocity of the cube
-                velocity.linvel += value;
-                velocity.angvel = Vec3::ZERO;
-            }
-        }
-    }
-}
-
-fn update_camera(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut MyCamera, With<MyCamera>>,
-) {
-    let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
-        (KeyCode::ArrowUp, Vec3::new(1., 0., 0.)),
-        (KeyCode::ArrowDown, Vec3::new(-1., 0., 0.)),
-        (KeyCode::ArrowLeft, Vec3::new(0., 0., -1.)),
-        (KeyCode::ArrowRight, Vec3::new(0., 0., 1.)),
-        (KeyCode::PageUp, Vec3::new(0., 1., 0.)),
-        (KeyCode::PageDown, Vec3::new(0., -1., 0.)),
-    ]);
-    for (key, value) in dirs.into_iter() {
-        if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
-            for mut camera in query.iter_mut() {
-                // Reset the position and velocity of the cube
-                camera.camera_delta += value;
-                println!("{}", camera.camera_delta);
-                dbg!("{}", camera.camera_delta);
-            }
-        }
-    }
-}
-
-fn camera_handle(
-    player_query: Query<&mut Transform, With<Player>>,
-    mut camera_query: Query<(&mut Transform, &MyCamera), (With<MyCamera>, Without<Player>)>,
-) {
-    let player_transform = player_query.get_single().expect("player should exist");  
-    let (mut camera_transform, camera) = camera_query.get_single_mut().expect("camera should exist");  
-    // Reset the position and velocity of the cube
-    camera_transform.look_at(Vec3::new(
-        player_transform.translation.x + 10.,
-        player_transform.translation.y + 1.5,
-        player_transform.translation.z + 0.0,
-    ), Vec3::Y);
-    camera_transform.translation = Vec3::new(
-        player_transform.translation.x,
-        player_transform.translation.y,
-        player_transform.translation.z,
-    ) + camera.camera_delta;
-}
