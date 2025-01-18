@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+avian3d = { version = "0.2", default-features = true, features = ["serialize"] }
 bevy = "0.15.1"
-bevy_rapier3d = { version = "0.28.0", features = [ "simd-stable", "debug-render-3d" ] }
+blenvy = { git = "https://github.com/ptsd/blenvy", branch = "blenvy-bevy-0.15" }
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!

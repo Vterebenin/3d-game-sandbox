@@ -1,0 +1,14 @@
+(
+  assets:
+   [ 
+    ("Direct", File ( path: "blueprints/Direct.glb" )),
+    ("Material.004", File ( path: "materials/Material.004.glb" )),
+    ("With Empty", File ( path: "blueprints/With Empty.glb" )),
+    ("Material.003", File ( path: "materials/Material.003.glb" )),
+    ("Wireframes", File ( path: "blueprints/Wireframes.glb" )),
+    ("static", File ( path: "blueprints/static.glb" )),
+    ("Material.002", File ( path: "materials/Material.002.glb" )),
+    ("Player", File ( path: "blueprints/Player.glb" )),
+    ("Material.001", File ( path: "materials/Material.001.glb" )),
+   ]
+)
