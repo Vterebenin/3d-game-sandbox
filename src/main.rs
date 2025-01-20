@@ -1,6 +1,4 @@
-use std::any::Any;
-
-use avian3d::{math::Vector, prelude::*};
+use avian3d::prelude::*;
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use blenvy::*;
 
@@ -12,7 +10,7 @@ fn main() -> AppExit {
             PhysicsPlugins::default(),
         ))
         .register_type::<Player>()
-        .register_type::<PlayerCameraFix>()
+        .register_type::<PlayerCamera>()
         .register_type::<Respawnable>()
         .add_systems(Startup, setup)
         .add_systems(PostStartup, add_physics)
@@ -20,6 +18,7 @@ fn main() -> AppExit {
         .add_systems(Update, update_controls)
         .add_systems(Update, update_camera)
         .add_systems(Update, camera_handle)
+        // .add_systems(Update, camera_collision_prevention_system)
         .run()
 }
 
@@ -33,7 +32,7 @@ struct Respawnable;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
-struct PlayerCameraFix {
+struct PlayerCamera {
     x: f32,
     y: f32,
     z: f32,
@@ -73,8 +72,6 @@ fn update_controls(
     ]);
     for (key, value) in dirs.into_iter() {
         if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
-            dbg!("found the player!!");
-            println!("found the player!!");
             for mut velocity in query.iter_mut() {
                 // Reset the position and velocity of the cube
                 velocity.x += value.x;
@@ -84,18 +81,47 @@ fn update_controls(
         }
     }
 }
+fn camera_collision_prevention_system(
+    mut query: Query<&mut Transform, With<Camera>>,
+    player_query: Query<&Transform, (With<Player>, Without<Camera>)>,
+    physics: SpatialQuery, // Assuming you have a physics engine resource set up.
+) {
+    if player_query.is_empty() {
+        return;
+    }
+    let player_transform = player_query.single().translation;
+
+    for mut camera_transform_mut in query.iter_mut() {
+        let camera_position = camera_transform_mut.translation;
+        let direction = (camera_position - player_transform).normalize();
+        if let Ok(direction) = Dir3::new(direction) {
+            let max_distance = (camera_position - player_transform).length();
+            if let Some(collision) = physics.cast_ray(
+                player_transform, // Start point
+                direction,
+                max_distance, // Max distance of the ray
+                true,
+                &SpatialQueryFilter::default(),
+            ) {
+                dbg!("we are in");
+                // Adjust the camera position based on the collision
+                camera_transform_mut.translation = collision.distance + collision.normal * 0.2; // Add a small buffer distance.
+            }
+        }
+    }
+}
 
 fn update_camera(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut PlayerCameraFix, With<PlayerCameraFix>>,
+    mut query: Query<&mut PlayerCamera, With<Camera>>,
 ) {
     let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
-        (KeyCode::ArrowUp, Vec3::new(0.05, 0., 0.)),
-        (KeyCode::ArrowDown, Vec3::new(-0.05, 0., 0.)),
-        (KeyCode::ArrowLeft, Vec3::new(0., 0., -0.05)),
-        (KeyCode::ArrowRight, Vec3::new(0., 0., 0.05)),
-        (KeyCode::PageUp, Vec3::new(0., 0.05, 0.)),
-        (KeyCode::PageDown, Vec3::new(0., -0.05, 0.)),
+        (KeyCode::ArrowUp, Vec3::new(0.15, 0., 0.)),
+        (KeyCode::ArrowDown, Vec3::new(-0.15, 0., 0.)),
+        (KeyCode::ArrowLeft, Vec3::new(0., 0., -0.15)),
+        (KeyCode::ArrowRight, Vec3::new(0., 0., 0.15)),
+        (KeyCode::PageUp, Vec3::new(0., 0.15, 0.)),
+        (KeyCode::PageDown, Vec3::new(0., -0.15, 0.)),
     ]);
     for (key, value) in dirs.into_iter() {
         if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
@@ -111,8 +137,12 @@ fn update_camera(
 
 fn camera_handle(
     player_query: Query<&mut Transform, With<Player>>,
-    mut camera_query: Query<(&mut Transform, &PlayerCameraFix), (With<PlayerCameraFix>, Without<Player>)>,
+    mut camera_query: Query<
+        (&mut Transform, &PlayerCamera),
+        (With<Camera>, Without<Player>),
+    >,
 ) {
+    dbg!("{} | {}", player_query.is_empty(), camera_query.is_empty());
     if player_query.is_empty() || camera_query.is_empty() {
         return;
     }
@@ -122,9 +152,9 @@ fn camera_handle(
     // Reset the position and velocity of the cube
     camera_transform.look_at(
         Vec3::new(
-            player_transform.translation.x + 10.,
-            player_transform.translation.y + 1.5,
-            player_transform.translation.z + 0.0,
+            player_transform.translation.x,
+            player_transform.translation.y,
+            player_transform.translation.z,
         ),
         Vec3::Y,
     );
@@ -137,10 +167,15 @@ fn camera_handle(
 
 fn add_physics(
     mut commands: Commands,
+    mut camera_query: Query<&mut Transform, With<Camera>>,
     player_query: Query<Entity, With<Player>>,
 ) {
+    for mut transform in camera_query.iter_mut() {
+        transform.translation = Vec3::new(-28., 8.1, 0.);
+    }
     for entity_id in player_query.iter() {
-        commands.entity(entity_id)
+        commands
+            .entity(entity_id)
             .insert(LinearVelocity::default());
     }
 }

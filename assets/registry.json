@@ -19984,11 +19984,11 @@
       "type": "object",
       "typeInfo": "Struct"
     },
-    "game_example::PlayerCameraFix": {
+    "game_example::PlayerCamera": {
       "additionalProperties": false,
       "isComponent": true,
       "isResource": false,
-      "long_name": "game_example::PlayerCameraFix",
+      "long_name": "game_example::PlayerCamera",
       "properties": {
         "x": {
           "type": {
@@ -20011,7 +20011,7 @@
         "y",
         "z"
       ],
-      "short_name": "PlayerCameraFix",
+      "short_name": "PlayerCamera",
       "type": "object",
       "typeInfo": "Struct"
     },
