@@ -1,6 +1,9 @@
-use avian3d::prelude::*;
+use avian3d::{math::Scalar, prelude::*};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use blenvy::*;
+use character_controller::{CharacterControllerBundle, CharacterControllerPlugin};
+mod character_controller;
 
 fn main() -> AppExit {
     App::new()
@@ -8,17 +11,17 @@ fn main() -> AppExit {
             DefaultPlugins,
             BlenvyPlugin::default(),
             PhysicsPlugins::default(),
+            CharacterControllerPlugin,
+            WorldInspectorPlugin::default(),
+            PhysicsDebugPlugin::default(),
         ))
         .register_type::<Player>()
-        .register_type::<PlayerCamera>()
+        .register_type::<PlayerCameraFix>()
         .register_type::<Respawnable>()
         .add_systems(Startup, setup)
-        .add_systems(PostStartup, add_physics)
         .add_systems(Update, respawn_player)
-        .add_systems(Update, update_controls)
         .add_systems(Update, update_camera)
         .add_systems(Update, camera_handle)
-        // .add_systems(Update, camera_collision_prevention_system)
         .run()
 }
 
@@ -32,18 +35,37 @@ struct Respawnable;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
-struct PlayerCamera {
+struct PlayerCameraFix {
     x: f32,
     y: f32,
     z: f32,
+    distance: f32,
+    yaw: f32,
+    pitch: f32,
 }
 
-fn setup(mut commands: Commands) {
+fn setup(
+    mut commands: Commands
+) {
     commands.spawn((
         BlueprintInfo::from_path("levels/World.glb"),
         SpawnBlueprint,
         HideUntilReady,
         GameWorldTag,
+    ));
+    commands.spawn((
+        BlueprintInfo::from_path("blueprints/Player.glb"), // mandatory !!
+        SpawnBlueprint, // mandatory !!
+        Transform::from_xyz(6.0, 7.0, 4.), // VERY important !!
+        CharacterControllerBundle::new(Collider::cuboid(0.8, 2.0, 1.)).with_movement(
+            30.0,
+            0.92,
+            7.0,
+            (30.0 as Scalar).to_radians(),
+        ),
+        Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
+        Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
+        GravityScale(2.0),
     ));
 }
 
@@ -51,33 +73,12 @@ fn respawn_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&mut Transform, &mut LinearVelocity), (With<Respawnable>, With<Player>)>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
+    if keyboard_input.just_pressed(KeyCode::KeyR) {
         for (mut transform, mut velocity) in query.iter_mut() {
             transform.translation = Vec3::new(0.0, 8.0, 0.0);
             velocity.x = 0.;
             velocity.y = 0.;
             velocity.z = 0.;
-        }
-    }
-}
-fn update_controls(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut LinearVelocity, With<Player>>,
-) {
-    let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
-        (KeyCode::KeyW, Vec3::new(0.5, 0., 0.)),
-        (KeyCode::KeyS, Vec3::new(-0.5, 0., 0.)),
-        (KeyCode::KeyA, Vec3::new(0., 0., -0.5)),
-        (KeyCode::KeyD, Vec3::new(0., 0., 0.5)),
-    ]);
-    for (key, value) in dirs.into_iter() {
-        if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
-            for mut velocity in query.iter_mut() {
-                // Reset the position and velocity of the cube
-                velocity.x += value.x;
-                velocity.y += value.y;
-                velocity.z += value.z;
-            }
         }
     }
 }
@@ -113,7 +114,7 @@ fn camera_collision_prevention_system(
 
 fn update_camera(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut PlayerCamera, With<Camera>>,
+    mut query: Query<&mut PlayerCameraFix, With<Camera>>,
 ) {
     let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
         (KeyCode::ArrowUp, Vec3::new(0.15, 0., 0.)),
@@ -137,12 +138,8 @@ fn update_camera(
 
 fn camera_handle(
     player_query: Query<&mut Transform, With<Player>>,
-    mut camera_query: Query<
-        (&mut Transform, &PlayerCamera),
-        (With<Camera>, Without<Player>),
-    >,
+    mut camera_query: Query<(&mut Transform, &PlayerCameraFix), (With<Camera>, Without<Player>)>,
 ) {
-    dbg!("{} | {}", player_query.is_empty(), camera_query.is_empty());
     if player_query.is_empty() || camera_query.is_empty() {
         return;
     }
@@ -163,19 +160,4 @@ fn camera_handle(
         player_transform.translation.y,
         player_transform.translation.z,
     ) + Vec3::new(camera.x, camera.y, camera.z);
-}
-
-fn add_physics(
-    mut commands: Commands,
-    mut camera_query: Query<&mut Transform, With<Camera>>,
-    player_query: Query<Entity, With<Player>>,
-) {
-    for mut transform in camera_query.iter_mut() {
-        transform.translation = Vec3::new(-28., 8.1, 0.);
-    }
-    for entity_id in player_query.iter() {
-        commands
-            .entity(entity_id)
-            .insert(LinearVelocity::default());
-    }
 }
