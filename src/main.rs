@@ -12,7 +12,6 @@ fn main() -> AppExit {
             BlenvyPlugin::default(),
             PhysicsPlugins::default(),
             CharacterControllerPlugin,
-            WorldInspectorPlugin::default(),
             PhysicsDebugPlugin::default(),
         ))
         .register_type::<Player>()
@@ -54,10 +53,12 @@ fn setup(
         GameWorldTag,
     ));
     commands.spawn((
+        Player,
+        Respawnable,
         BlueprintInfo::from_path("blueprints/Player.glb"), // mandatory !!
         SpawnBlueprint, // mandatory !!
-        Transform::from_xyz(6.0, 7.0, 4.), // VERY important !!
-        CharacterControllerBundle::new(Collider::cuboid(0.8, 2.0, 1.)).with_movement(
+        Transform::from_xyz(0., 8., 0.), // VERY important !!
+        CharacterControllerBundle::new(Collider::capsule(0.4, 1.2)).with_movement(
             30.0,
             0.92,
             7.0,
