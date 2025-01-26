@@ -5,10 +5,15 @@ edition = "2024"
 
 [dependencies]
 avian3d = { version = "0.2", default-features = true, features = ["serialize"] }
-bevy = "0.15.1"
 bevy-inspector-egui = "0.28.1"
 bevy_third_person_camera = "0.2.0"
 blenvy = { git = "https://github.com/ptsd/blenvy", branch = "blenvy-bevy-0.15" }
+
+[dependencies.bevy]
+version = "0.15.1"
+features = [
+ "wayland",
+]
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!

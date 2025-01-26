@@ -1,9 +1,6 @@
-use avian3d::{math::Scalar, prelude::*};
+use avian3d::{math::{Quaternion, Scalar}, prelude::*};
 use bevy::{
-    input::mouse::{MouseButtonInput, MouseMotion, MouseWheel},
-    prelude::*,
-    utils::hashbrown::HashMap,
-    window::{CursorGrabMode, PrimaryWindow},
+    input::mouse::{MouseMotion, MouseWheel}, prelude::*, window::{CursorGrabMode, PrimaryWindow}
 };
 use blenvy::*;
 use character_controller::{CharacterControllerBundle, CharacterControllerPlugin};
@@ -28,7 +25,10 @@ fn main() -> AppExit {
         // .add_systems(Update, update_camera)
         // .add_systems(Update, camera_handle)
         // .add_systems(Update, camera_follow)
-        .add_systems(Update, rotate_camera)
+        .add_systems(
+            Update,
+            (rotate_camera).chain(),
+        )
         .run()
 }
 
@@ -40,7 +40,7 @@ struct Player;
 #[reflect(Component)]
 struct Respawnable;
 
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Debug)]
 #[reflect(Component)]
 struct PlayerCameraFix {
     x: f32,
@@ -49,17 +49,6 @@ struct PlayerCameraFix {
     distance: f32,
     yaw: f32,
     pitch: f32,
-}
-
-impl PlayerCameraFix {
-    fn get_offset(&self) -> Vec3 {
-        Vec3::new(self.x, self.y, self.z)
-    }
-    fn set_offset(&mut self, vec: Vec3) {
-        self.x = vec.x;
-        self.y = vec.y;
-        self.z = vec.z;
-    }
 }
 
 fn setup(mut commands: Commands) {
@@ -91,7 +80,11 @@ fn respawn_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&mut Transform, &mut LinearVelocity), (With<Respawnable>, With<Player>)>,
     mut q_windows: Query<&mut Window, With<PrimaryWindow>>,
+    mut camera_query: Query<(&mut Transform, &mut PlayerCameraFix), (With<Camera>, Without<Player>)>,
 ) {
+    if query.is_empty() || camera_query.is_empty() {
+        return;
+    }
     if keyboard_input.just_pressed(KeyCode::Escape) {
         let mut primary_window = q_windows.single_mut();
         if primary_window.cursor_options.grab_mode == CursorGrabMode::Locked {
@@ -108,135 +101,47 @@ fn respawn_player(
             velocity.y = 0.;
             velocity.z = 0.;
         }
+        let (mut camera_transform, mut player_camera) = camera_query.get_single_mut().unwrap();
+        camera_transform.translation = Vec3::new(0., 5., 10.);
+        player_camera.yaw = 1.53;
+        player_camera.pitch = 0.22;
     }
 }
-fn camera_collision_prevention_system(
-    mut query: Query<&mut Transform, With<Camera>>,
-    player_query: Query<&Transform, (With<Player>, Without<Camera>)>,
-    physics: SpatialQuery, // Assuming you have a physics engine resource set up.
-) {
-    if player_query.is_empty() {
-        return;
-    }
-    let player_transform = player_query.single().translation;
-
-    for mut camera_transform_mut in query.iter_mut() {
-        let camera_position = camera_transform_mut.translation;
-        let direction = (camera_position - player_transform).normalize();
-        if let Ok(direction) = Dir3::new(direction) {
-            let max_distance = (camera_position - player_transform).length();
-            if let Some(collision) = physics.cast_ray(
-                player_transform, // Start point
-                direction,
-                max_distance, // Max distance of the ray
-                true,
-                &SpatialQueryFilter::default(),
-            ) {
-                dbg!("we are in");
-                // Adjust the camera position based on the collision
-                camera_transform_mut.translation = collision.distance + collision.normal * 0.2; // Add a small buffer distance.
-            }
-        }
-    }
-}
-
-// fn update_camera(
-//     keyboard_input: Res<ButtonInput<KeyCode>>,
-//     mut query: Query<&mut PlayerCameraFix, With<Camera>>,
-// ) {
-//     let dirs: HashMap<KeyCode, Vec3> = HashMap::from([
-//         (KeyCode::ArrowUp, Vec3::new(0.15, 0., 0.)),
-//         (KeyCode::ArrowDown, Vec3::new(-0.15, 0., 0.)),
-//         (KeyCode::ArrowLeft, Vec3::new(0., 0., -0.15)),
-//         (KeyCode::ArrowRight, Vec3::new(0., 0., 0.15)),
-//         (KeyCode::PageUp, Vec3::new(0., 0.15, 0.)),
-//         (KeyCode::PageDown, Vec3::new(0., -0.15, 0.)),
-//     ]);
-//     for (key, value) in dirs.into_iter() {
-//         if keyboard_input.pressed(key) || keyboard_input.just_pressed(key) {
-//             for mut camera in query.iter_mut() {
-//                 // Reset the position and velocity of the cube
-//                 camera.x += value.x;
-//                 camera.y += value.y;
-//                 camera.z += value.z;
-//             }
-//         }
-//     }
-// }
-
-// fn camera_handle(
-//     player_query: Query<&mut Transform, With<Player>>,
-//     mut camera_query: Query<(&mut Transform, &PlayerCameraFix), (With<Camera>, Without<Player>)>,
-// ) {
-//     if player_query.is_empty() || camera_query.is_empty() {
-//         return;
-//     }
-//     let player_transform = player_query.get_single().expect("player should exist");
-//     let (mut camera_transform, camera) =
-//         camera_query.get_single_mut().expect("camera should exist");
-//     // Reset the position and velocity of the cube
-//     camera_transform.look_at(
-//         Vec3::new(
-//             player_transform.translation.x,
-//             player_transform.translation.y,
-//             player_transform.translation.z,
-//         ),
-//         Vec3::Y,
-//     );
-//     camera_transform.translation = Vec3::new(
-//         player_transform.translation.x,
-//         player_transform.translation.y,
-//         player_transform.translation.z,
-//     ) + Vec3::new(camera.x, camera.y, camera.z);
-// }
 
 fn cursor_grab(mut q_windows: Query<&mut Window, With<PrimaryWindow>>) {
-    // let mut primary_window = q_windows.single_mut();
+    let mut primary_window = q_windows.single_mut();
 
-    // // primary_window.cursor_options.grab_mode = CursorGrabMode::Confined;
+    // primary_window.cursor_options.grab_mode = CursorGrabMode::Confined;
 
-    // primary_window.cursor_options.grab_mode = CursorGrabMode::Locked;
+    primary_window.cursor_options.grab_mode = CursorGrabMode::Locked;
 
-    // primary_window.cursor_options.visible = false;
+    primary_window.cursor_options.visible = false;
 }
-
-// // System to make the camera follow the player
-// fn camera_follow(
-//     player_query: Query<&Transform, With<Player>>,
-//     mut camera_query: Query<(&mut Transform, &PlayerCameraFix), (With<Camera>, Without<Player>)>,
-// ) {
-//     if player_query.is_empty() || camera_query.is_empty() {
-//         return;
-//     }
-//     let player_transform = player_query.single();
-//     let (mut camera_transform, camera) = camera_query.single_mut();
-// 
-//     // Update the camera's position based on the player's position and the fixed offset
-//     camera_transform.translation = player_transform.translation + camera.get_offset();
-// }
 
 // System to rotate the camera around the player using mouse input
 fn rotate_camera(
     mut camera_query: Query<(&mut Transform, &mut PlayerCameraFix), With<Camera>>,
-    player_query: Query<&Transform, (With<Player>, Without<Camera>)>,
+    player_query: Query<(&Transform, Entity), (With<Player>, Without<Camera>)>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     mut mouse_wheel: EventReader<MouseWheel>,
     time: Res<Time>,
+    physics: SpatialQuery, // Assuming you have a physics engine resource set up.
 ) {
     if player_query.is_empty() || camera_query.is_empty() {
         return;
     }
-    const MOUSE_SENSITIVITY_X: f32 = 0.0000001;
-    const MOUSE_SENSITIVITY_Y: f32 = 0.000001;
+    const MOUSE_SENSITIVITY_X: f32 = 0.002;
+    const MOUSE_SENSITIVITY_Y: f32 = 0.002;
     const ZOOM_SPEED: f32 = 2.0;
 
     if let Ok((mut camera_transform, mut camera)) = camera_query.get_single_mut() {
-        if let Ok(player_transform) = player_query.get_single() {
+        if let Ok((player_transform, player_id)) = player_query.get_single() {
             // Rotate the camera with mouse drag
             for event in mouse_motion_events.read() {
-                println!("{} {}", event.delta.x, event.delta.y);
-                camera.yaw -= event.delta.x * MOUSE_SENSITIVITY_X;
-                camera.pitch += event.delta.y * MOUSE_SENSITIVITY_Y;
+                let x_delta = event.delta.x;
+                let y_delta = event.delta.y;
+                camera.yaw += x_delta * MOUSE_SENSITIVITY_X;
+                camera.pitch += y_delta * MOUSE_SENSITIVITY_Y;
             }
 
             // Adjust the camera's zoom
@@ -247,18 +152,35 @@ fn rotate_camera(
 
             // Compute the new camera position based on yaw, pitch, and distance
             let offset = Vec3::new(
-                camera.distance
-                    * camera.yaw.cos()
-                    * camera.pitch.cos(),
+                camera.distance * camera.yaw.cos() * camera.pitch.cos(),
                 camera.distance * camera.pitch.sin(),
-                camera.distance
-                    * camera.yaw.sin()
-                    * camera.pitch.cos(),
+                camera.distance * camera.yaw.sin() * camera.pitch.cos(),
             );
 
-
             // Position the camera relative to the player and look at the player
-            camera_transform.translation = player_transform.translation + offset;
+            let desired_position = player_transform.translation + offset;
+
+            let direction = desired_position - player_transform.translation;
+            let query_filter = SpatialQueryFilter::from_mask(0b1011).with_excluded_entities([player_id]);
+
+            if let Ok(direction) = Dir3::new(direction) {
+                if let Some(hit) = physics.cast_shape(
+                    &Collider::sphere(1.),
+                    player_transform.translation + Vec3::ONE, // Start point
+                    Quat::IDENTITY,
+                    direction, 
+                    &ShapeCastConfig::from_max_distance(15.),
+                    &query_filter,
+                ) {
+                    println!("hit {:?}", hit);
+                    println!("hit {}", desired_position);
+                    camera_transform.translation = hit.point1;
+                } else {
+                    camera_transform.translation = desired_position;
+                }
+            } else {
+                camera_transform.translation = desired_position;
+            }
             camera_transform.look_at(player_transform.translation, Vec3::Y);
         }
     }
