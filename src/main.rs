@@ -1,6 +1,11 @@
-use avian3d::{math::{Quaternion, Scalar}, prelude::*};
+use avian3d::{
+    math::Scalar,
+    prelude::*,
+};
 use bevy::{
-    input::mouse::{MouseMotion, MouseWheel}, prelude::*, window::{CursorGrabMode, PrimaryWindow}
+    input::mouse::{MouseMotion, MouseWheel},
+    prelude::*,
+    window::{CursorGrabMode, PrimaryWindow},
 };
 use blenvy::*;
 use character_controller::{CharacterControllerBundle, CharacterControllerPlugin};
@@ -19,16 +24,9 @@ fn main() -> AppExit {
         .register_type::<PlayerCameraFix>()
         .register_type::<Respawnable>()
         .add_systems(Startup, setup)
-        // .add_systems(Startup, hide_cursor)
         .add_systems(Startup, cursor_grab)
         .add_systems(Update, respawn_player)
-        // .add_systems(Update, update_camera)
-        // .add_systems(Update, camera_handle)
-        // .add_systems(Update, camera_follow)
-        .add_systems(
-            Update,
-            (rotate_camera).chain(),
-        )
+        .add_systems(Update, (rotate_camera).chain())
         .run()
 }
 
@@ -65,9 +63,9 @@ fn setup(mut commands: Commands) {
         SpawnBlueprint,                                    // mandatory !!
         Transform::from_xyz(0., 8., 0.),                   // VERY important !!
         CharacterControllerBundle::new(Collider::capsule(0.4, 1.2)).with_movement(
-            30.0,
-            0.92,
-            7.0,
+            40.0,
+            0.93,
+            10.0,
             (30.0 as Scalar).to_radians(),
         ),
         Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
@@ -80,7 +78,10 @@ fn respawn_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&mut Transform, &mut LinearVelocity), (With<Respawnable>, With<Player>)>,
     mut q_windows: Query<&mut Window, With<PrimaryWindow>>,
-    mut camera_query: Query<(&mut Transform, &mut PlayerCameraFix), (With<Camera>, Without<Player>)>,
+    mut camera_query: Query<
+        (&mut Transform, &mut PlayerCameraFix),
+        (With<Camera>, Without<Player>),
+    >,
 ) {
     if query.is_empty() || camera_query.is_empty() {
         return;
@@ -121,7 +122,7 @@ fn cursor_grab(mut q_windows: Query<&mut Window, With<PrimaryWindow>>) {
 // System to rotate the camera around the player using mouse input
 fn rotate_camera(
     mut camera_query: Query<(&mut Transform, &mut PlayerCameraFix), With<Camera>>,
-    player_query: Query<(&Transform, Entity), (With<Player>, Without<Camera>)>,
+    mut player_query: Query<(&mut Transform, Entity), (With<Player>, Without<Camera>)>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     mut mouse_wheel: EventReader<MouseWheel>,
     time: Res<Time>,
@@ -134,54 +135,66 @@ fn rotate_camera(
     const MOUSE_SENSITIVITY_Y: f32 = 0.002;
     const ZOOM_SPEED: f32 = 2.0;
 
-    if let Ok((mut camera_transform, mut camera)) = camera_query.get_single_mut() {
-        if let Ok((player_transform, player_id)) = player_query.get_single() {
-            // Rotate the camera with mouse drag
-            for event in mouse_motion_events.read() {
-                let x_delta = event.delta.x;
-                let y_delta = event.delta.y;
-                camera.yaw += x_delta * MOUSE_SENSITIVITY_X;
-                camera.pitch += y_delta * MOUSE_SENSITIVITY_Y;
-            }
-
-            // Adjust the camera's zoom
-            for event in mouse_wheel.read() {
-                camera.distance -= event.y * ZOOM_SPEED * time.delta_secs();
-                camera.distance = camera.distance.clamp(2.0, 15.0); // Clamp zoom levels
-            }
-
-            // Compute the new camera position based on yaw, pitch, and distance
-            let offset = Vec3::new(
-                camera.distance * camera.yaw.cos() * camera.pitch.cos(),
-                camera.distance * camera.pitch.sin(),
-                camera.distance * camera.yaw.sin() * camera.pitch.cos(),
-            );
-
-            // Position the camera relative to the player and look at the player
-            let desired_position = player_transform.translation + offset;
-
-            let direction = desired_position - player_transform.translation;
-            let query_filter = SpatialQueryFilter::from_mask(0b1011).with_excluded_entities([player_id]);
-
-            if let Ok(direction) = Dir3::new(direction) {
-                if let Some(hit) = physics.cast_shape(
-                    &Collider::sphere(1.),
-                    player_transform.translation + Vec3::ONE, // Start point
-                    Quat::IDENTITY,
-                    direction, 
-                    &ShapeCastConfig::from_max_distance(15.),
-                    &query_filter,
-                ) {
-                    println!("hit {:?}", hit);
-                    println!("hit {}", desired_position);
-                    camera_transform.translation = hit.point1;
-                } else {
-                    camera_transform.translation = desired_position;
-                }
-            } else {
-                camera_transform.translation = desired_position;
-            }
-            camera_transform.look_at(player_transform.translation, Vec3::Y);
-        }
+    let (mut camera_transform, mut camera) = camera_query.get_single_mut().unwrap();
+    let (mut player_transform, player_id) = player_query.get_single_mut().unwrap();
+    // Rotate the camera with mouse drag
+    for event in mouse_motion_events.read() {
+        let x_delta = event.delta.x;
+        let y_delta = event.delta.y;
+        camera.yaw += x_delta * MOUSE_SENSITIVITY_X;
+        camera.pitch += y_delta * MOUSE_SENSITIVITY_Y;
     }
+
+    // Adjust the camera's zoom
+    for event in mouse_wheel.read() {
+        camera.distance -= event.y * ZOOM_SPEED * time.delta_secs();
+        camera.distance = camera.distance.clamp(2.0, 15.0); // Clamp zoom levels
+    }
+
+    // Compute the new camera position based on yaw, pitch, and distance
+    let offset = Vec3::new(
+        camera.distance * camera.yaw.cos() * camera.pitch.cos(),
+        camera.distance * camera.pitch.sin(),
+        camera.distance * camera.yaw.sin() * camera.pitch.cos(),
+    );
+
+    // Position the camera relative to the player and look at the player
+    let desired_position = player_transform.translation + offset;
+
+    let direction = desired_position - player_transform.translation;
+    let query_filter = SpatialQueryFilter::from_mask(0b1011).with_excluded_entities([player_id]);
+
+    if let Ok(direction) = Dir3::new(direction) {
+        if let Some(hit) = physics.cast_shape(
+            &Collider::sphere(0.),
+            player_transform.translation, // Start point
+            Quat::IDENTITY,
+            direction,
+            &ShapeCastConfig {
+                max_distance: 15.,
+                target_distance: 0.,
+                ignore_origin_penetration: true,
+                ..Default::default()
+            },
+            &query_filter,
+        ) {
+            camera_transform.translation = hit.point1;
+        } else {
+            camera_transform.translation = desired_position;
+        }
+    } else {
+        camera_transform.translation = desired_position;
+    }
+    camera_transform.look_at(player_transform.translation, Vec3::Y);
+    
+    // Get the direction the camera is facing (ignoring vertical component)
+
+    // Compute the rotation to align the player with the camera
+    // Calculate the target yaw angle
+
+    // Optional: Smoothly interpolate to the target rotation
+    let current_rotation = (camera_transform.rotation).to_euler(EulerRot::YXZ).0;
+
+    // Update the player's rotation
+    player_transform.rotation = Quat::from_euler(EulerRot::YXZ, current_rotation, 0.0, 0.0);
 }

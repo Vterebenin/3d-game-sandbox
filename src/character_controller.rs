@@ -1,6 +1,8 @@
 use avian3d::{math::*, prelude::*};
 use bevy::{ecs::query::Has, prelude::*};
 
+use crate::Player;
+
 pub struct CharacterControllerPlugin;
 
 impl Plugin for CharacterControllerPlugin {
@@ -133,7 +135,11 @@ impl CharacterControllerBundle {
 fn keyboard_input(
     mut movement_event_writer: EventWriter<MovementAction>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    camera_query: Query<&Transform, (With<Camera>, Without<Player>)>,
 ) {
+    if camera_query.is_empty() {
+        return;
+    }
     let up = keyboard_input.any_pressed([KeyCode::KeyW]);
     let down = keyboard_input.any_pressed([KeyCode::KeyS]);
     let left = keyboard_input.any_pressed([KeyCode::KeyA]);
@@ -141,7 +147,12 @@ fn keyboard_input(
 
     let horizontal = right as i8 - left as i8;
     let vertical = up as i8 - down as i8;
-    let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
+    let camera_transform = camera_query.get_single().unwrap();
+
+    let dir = Vec3::new(vertical as Scalar, 0., horizontal as Scalar);
+    let dir = camera_transform.rotation.mul_vec3(dir);
+    
+    let direction = Vector2::new(dir.z, dir.x).clamp_length_max(1.0);
 
     if direction != Vector2::ZERO {
         movement_event_writer.send(MovementAction::Move(direction));
