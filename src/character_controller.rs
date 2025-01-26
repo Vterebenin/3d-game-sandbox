@@ -135,10 +135,10 @@ fn keyboard_input(
     mut movement_event_writer: EventWriter<MovementAction>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
-    let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
-    let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
-    let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
+    let up = keyboard_input.any_pressed([KeyCode::KeyW]);
+    let down = keyboard_input.any_pressed([KeyCode::KeyS]);
+    let left = keyboard_input.any_pressed([KeyCode::KeyA]);
+    let right = keyboard_input.any_pressed([KeyCode::KeyD]);
 
     let horizontal = right as i8 - left as i8;
     let vertical = up as i8 - down as i8;
