@@ -20190,22 +20190,22 @@
       "type": "float",
       "typeInfo": "Value"
     },
-    "game_example::Player": {
+    "game_example::core::Player": {
       "additionalProperties": false,
       "isComponent": true,
       "isResource": false,
-      "long_name": "game_example::Player",
+      "long_name": "game_example::core::Player",
       "properties": {},
       "required": [],
       "short_name": "Player",
       "type": "object",
       "typeInfo": "Struct"
     },
-    "game_example::PlayerCameraFix": {
+    "game_example::core::PlayerCameraFix": {
       "additionalProperties": false,
       "isComponent": true,
       "isResource": false,
-      "long_name": "game_example::PlayerCameraFix",
+      "long_name": "game_example::core::PlayerCameraFix",
       "properties": {
         "distance": {
           "type": {
@@ -20250,11 +20250,11 @@
       "type": "object",
       "typeInfo": "Struct"
     },
-    "game_example::Respawnable": {
+    "game_example::core::Respawnable": {
       "additionalProperties": false,
       "isComponent": true,
       "isResource": false,
-      "long_name": "game_example::Respawnable",
+      "long_name": "game_example::core::Respawnable",
       "properties": {},
       "required": [],
       "short_name": "Respawnable",

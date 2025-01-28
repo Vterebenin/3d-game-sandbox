@@ -1,7 +1,7 @@
 use avian3d::{math::*, prelude::*};
 use bevy::{ecs::query::Has, prelude::*};
 
-use crate::Player;
+use crate::core::Player;
 
 pub struct CharacterControllerPlugin;
 
