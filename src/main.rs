@@ -1,11 +1,8 @@
-use avian3d::{
-    math::Scalar,
-    prelude::*,
-};
+use avian3d::{math::Scalar, prelude::*};
 use bevy::{
     input::mouse::{MouseMotion, MouseWheel},
     prelude::*,
-    window::{CursorGrabMode, PrimaryWindow},
+    window::{CursorGrabMode, PrimaryWindow, WindowMode},
 };
 use blenvy::*;
 use character_controller::{CharacterControllerBundle, CharacterControllerPlugin};
@@ -14,7 +11,18 @@ mod character_controller;
 fn main() -> AppExit {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins
+                .set(AssetPlugin::default())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        resizable: true,
+                        position: WindowPosition::Automatic,
+                        mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                        visible: true,
+                        ..default()
+                    }),
+                    ..default()
+                }),
             BlenvyPlugin::default(),
             PhysicsPlugins::default(),
             CharacterControllerPlugin,
@@ -144,6 +152,7 @@ fn rotate_camera(
         camera.yaw += x_delta * MOUSE_SENSITIVITY_X;
         camera.pitch += y_delta * MOUSE_SENSITIVITY_Y;
     }
+    println!("{:?}", camera);
 
     // Adjust the camera's zoom
     for event in mouse_wheel.read() {
@@ -164,7 +173,7 @@ fn rotate_camera(
     let direction = desired_position - player_transform.translation;
     let query_filter = SpatialQueryFilter::from_mask(0b1011).with_excluded_entities([player_id]);
 
-    if let Ok(direction) = Dir3::new(direction) {
+    if let Ok(direction) = Dir3::new(direction.normalize()) {
         if let Some(hit) = physics.cast_shape(
             &Collider::sphere(0.),
             player_transform.translation, // Start point
@@ -186,7 +195,7 @@ fn rotate_camera(
         camera_transform.translation = desired_position;
     }
     camera_transform.look_at(player_transform.translation, Vec3::Y);
-    
+
     // Get the direction the camera is facing (ignoring vertical component)
 
     // Compute the rotation to align the player with the camera
