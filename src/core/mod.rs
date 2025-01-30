@@ -64,8 +64,8 @@ fn setup(mut commands: Commands) {
             10.0,
             (30.0 as Scalar).to_radians(),
         ),
-        Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
-        Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
+        Friction::new(0.4).with_combine_rule(CoefficientCombine::Min),
+        Restitution::new(1.0).with_combine_rule(CoefficientCombine::Min),
         GravityScale(2.0),
     ));
 }
