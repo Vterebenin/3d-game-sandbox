@@ -2,8 +2,9 @@
   assets:
    [ 
     ("Direct", File ( path: "blueprints/Direct.glb" )),
-    ("Material.003", File ( path: "materials/Material.003.glb" )),
+    ("PlayerMat", File ( path: "materials/PlayerMat.glb" )),
     ("With Empty", File ( path: "blueprints/With Empty.glb" )),
+    ("Material", File ( path: "materials/Material.glb" )),
     ("Wireframes", File ( path: "blueprints/Wireframes.glb" )),
     ("Material.002", File ( path: "materials/Material.002.glb" )),
     ("static", File ( path: "blueprints/static.glb" )),

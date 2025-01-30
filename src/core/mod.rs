@@ -70,6 +70,7 @@ fn setup(mut commands: Commands) {
     ));
 }
 
+// TODO: this is primary for debugging purposes
 fn respawn_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&mut Transform, &mut LinearVelocity), (With<Respawnable>, With<Player>)>,
@@ -108,17 +109,18 @@ fn respawn_player(
 fn cursor_grab(mut q_windows: Query<&mut Window, With<PrimaryWindow>>) {
     let mut primary_window = q_windows.single_mut();
 
-    // primary_window.cursor_options.grab_mode = CursorGrabMode::Confined;
-
     primary_window.cursor_options.grab_mode = CursorGrabMode::Locked;
 
     primary_window.cursor_options.visible = false;
 }
 
+type WithPlayer = (With<Player>, Without<Camera>);
+type WithCamera = (With<Camera>, Without<Player>);
+
 // System to rotate the camera around the player using mouse input
 fn rotate_camera(
-    mut camera_query: Query<(&mut Transform, &mut PlayerCameraFix), With<Camera>>,
-    mut player_query: Query<(&mut Transform, Entity), (With<Player>, Without<Camera>)>,
+    mut camera_query: Query<(&mut Transform, &mut PlayerCameraFix), WithCamera>,
+    mut player_query: Query<(&mut Transform, Entity), WithPlayer>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     mut mouse_wheel: EventReader<MouseWheel>,
     time: Res<Time>,
@@ -127,6 +129,7 @@ fn rotate_camera(
     if player_query.is_empty() || camera_query.is_empty() {
         return;
     }
+
     const MOUSE_SENSITIVITY_X: f32 = 0.002;
     const MOUSE_SENSITIVITY_Y: f32 = 0.002;
     const ZOOM_SPEED: f32 = 2.0;
@@ -162,7 +165,7 @@ fn rotate_camera(
 
     if let Ok(direction) = Dir3::new(direction.normalize()) {
         if let Some(hit) = physics.cast_shape(
-            &Collider::sphere(0.),
+            &Collider::sphere(0.5),
             player_transform.translation, // Start point
             Quat::IDENTITY,
             direction,
@@ -183,12 +186,6 @@ fn rotate_camera(
     }
     camera_transform.look_at(player_transform.translation, Vec3::Y);
 
-    // Get the direction the camera is facing (ignoring vertical component)
-
-    // Compute the rotation to align the player with the camera
-    // Calculate the target yaw angle
-
-    // Optional: Smoothly interpolate to the target rotation
     let current_rotation = (camera_transform.rotation).to_euler(EulerRot::YXZ).0;
 
     // Update the player's rotation
